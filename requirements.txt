@@ -2,6 +2,7 @@ streamlit==1.32.2
 plotly==5.19.0
 supabase==2.4.5
 httpx==0.25.2
+httpcore==1.0.2
 python-dotenv==1.0.1
 requests==2.31.0
 yfinance==0.2.37
