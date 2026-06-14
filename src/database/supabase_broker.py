@@ -32,7 +32,20 @@ class SupabasePortfolioManager:
             # but user explicitly requested to raise ValueError
             raise ValueError("Invalid configuration boundaries.")
         else:
-            self.client: Client = create_client(self.url, self.key)
+            # Bypass Supabase JWT validation for sb_publishable_* keys
+            import supabase._sync.client
+            original_match = supabase._sync.client.re.match
+            
+            def patched_match(pattern, string, flags=0):
+                if string.startswith("sb_publishable_"):
+                    return True
+                return original_match(pattern, string, flags)
+                
+            supabase._sync.client.re.match = patched_match
+            try:
+                self.client: Client = create_client(self.url, self.key)
+            finally:
+                supabase._sync.client.re.match = original_match
 
     def sync_manual_position(self, data: dict) -> bool:
         """
