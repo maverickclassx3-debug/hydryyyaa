@@ -2,6 +2,8 @@ import os
 import time
 import requests
 import logging
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from dotenv import load_dotenv
 from src.database.supabase_broker import SupabasePortfolioManager
 from src.utils.api_clients import MarketDataClient
@@ -81,6 +83,22 @@ class TelegramSentinel:
                 
             time.sleep(60)
 
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b"Sentinel is ALIVE and monitoring!")
+
+def run_dummy_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    server.serve_forever()
+
 if __name__ == "__main__":
+    # Start the dummy web server to satisfy Render's port binding requirement
+    threading.Thread(target=run_dummy_server, daemon=True).start()
+    
+    # Initialize and run the Sentinel
     sentinel = TelegramSentinel()
     sentinel.run_sentinel_loop()
