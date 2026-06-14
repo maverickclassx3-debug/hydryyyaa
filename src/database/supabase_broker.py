@@ -7,14 +7,32 @@ load_dotenv()
 
 class SupabasePortfolioManager:
     def __init__(self):
-        url = os.getenv("SUPABASE_URL")
-        key = os.getenv("SUPABASE_KEY")
+        raw_url = os.getenv("SUPABASE_URL", "")
+        raw_key = os.getenv("SUPABASE_KEY", "")
         
-        if not url or not key:
-            logging.warning("Supabase credentials missing. Cloud broker running in offline simulation mode.")
+        # Strict Multi-Pass Sanitization Wrapper
+        def sanitize(val: str) -> str:
+            if not val:
+                return ""
+            # Strip accidental prefixes if pasted along with the key
+            if "SUPABASE_KEY=" in val:
+                val = val.split("SUPABASE_KEY=")[-1]
+            if "SUPABASE_URL=" in val:
+                val = val.split("SUPABASE_URL=")[-1]
+            # Strip backticks, quotes, and whitespace bounds
+            return val.replace("`", "").replace("'", "").replace('"', "").strip()
+
+        self.url = sanitize(raw_url)
+        self.key = sanitize(raw_key)
+        
+        if not self.url or not self.key:
+            logging.error("CRITICAL: Sanitized Supabase credentials are empty!")
             self.client = None
+            # Raising an error may crash sentinel depending on handling, 
+            # but user explicitly requested to raise ValueError
+            raise ValueError("Invalid configuration boundaries.")
         else:
-            self.client: Client = create_client(url, key)
+            self.client: Client = create_client(self.url, self.key)
 
     def sync_manual_position(self, data: dict) -> bool:
         """
