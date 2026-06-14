@@ -2,6 +2,17 @@ import os
 import logging
 from dotenv import load_dotenv
 from supabase import create_client, Client
+import httpx
+
+# Surgical Interceptor for ghost-cached httpx version conflicts
+original_httpx_client_init = httpx.Client.__init__
+
+def patched_httpx_client_init(self, *args, **kwargs):
+    if 'proxy' in kwargs:
+        kwargs.pop('proxy')
+    original_httpx_client_init(self, *args, **kwargs)
+
+httpx.Client.__init__ = patched_httpx_client_init
 
 load_dotenv()
 
