@@ -98,16 +98,30 @@ class TelegramSentinel:
             time.sleep(60)
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_HEAD(self):
+        """Handle HEAD requests — required for Render's port scanner to detect service as live."""
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+
     def do_GET(self):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
         self.wfile.write(b"Sentinel is ALIVE and monitoring!")
 
+    def log_message(self, format, *args):
+        # Suppress default HTTP access log noise from Render health checks
+        pass
+
 def run_dummy_server():
     port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-    server.serve_forever()
+    try:
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        logging.info(f"Health check server successfully bound to port {port}.")
+        server.serve_forever()
+    except Exception as e:
+        logging.error(f"CRITICAL: Health check server failed to bind on port {port}: {e}")
 
 def run_bot_loop():
     """Isolated runner for the Telegram Sentinel polling logic"""
