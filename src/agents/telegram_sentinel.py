@@ -115,4 +115,10 @@ if __name__ == "__main__":
     
     # Initialize and run the Sentinel
     sentinel = TelegramSentinel()
-    sentinel.run_sentinel_loop()
+    
+    # CRITICAL FIX: Execute the main loop so the bot actually processes data
+    try:
+        sentinel.run_sentinel_loop()
+    except Exception as e:
+        import logging
+        logging.error(f"Fatal error in Sentinel loop: {e}")
