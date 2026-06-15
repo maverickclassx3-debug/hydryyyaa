@@ -99,3 +99,16 @@ class SupabasePortfolioManager:
         except Exception as e:
             logging.error(f"Failed to update position {row_id} status in Supabase: {e}")
             return False
+
+    def log_ai_journal(self, symbol: str, action: str, price: float, sentiment_score: float, logic: str):
+        """Logs the cognitive processing matrix into public.ai_trade_journal"""
+        try:
+            self.client.table("ai_trade_journal").insert({
+                "symbol": symbol,
+                "action": action,
+                "price": price,
+                "sentiment_score": sentiment_score,
+                "ai_logic": logic
+            }).execute()
+        except Exception as e:
+            logging.error(f"Failed to write to ai_trade_journal: {e}")

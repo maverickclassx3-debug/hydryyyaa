@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from dotenv import load_dotenv
 from src.database.supabase_broker import SupabasePortfolioManager
 from src.utils.api_clients import MarketDataClient
+from src.agents.sentiment_engine import SentimentEngine
 
 load_dotenv()
 
@@ -18,6 +19,7 @@ class TelegramSentinel:
         self.chat_id = os.getenv("TELEGRAM_CHAT_ID", "123456789") 
         self.db = SupabasePortfolioManager()
         self.market = MarketDataClient()
+        self.sentiment_engine = SentimentEngine()
 
     def send_alert(self, message: str) -> bool:
         if not self.bot_token:
@@ -53,6 +55,18 @@ class TelegramSentinel:
                 
             current_price = tech.get("current_price", 0.0)
             
+            # Analyze Sentiment
+            sentiment = self.sentiment_engine.analyze_ticker(symbol)
+            
+            # Log AI Cognitive Process
+            self.db.log_ai_journal(
+                symbol, 
+                "MONITOR", 
+                current_price, 
+                sentiment['sentiment_score'], 
+                f"Signal: {sentiment['signal']}"
+            )
+            
             # Simplified long-only execution boundary check
             breached = False
             exit_reason = ""
@@ -65,7 +79,7 @@ class TelegramSentinel:
                 exit_reason = f"hit PROFIT TARGET at {current_price:.2f}"
                 
             if breached:
-                message = f"🚨 *URGENT EXIT ADVICE*: {symbol} {exit_reason}!"
+                message = f"🚨 *URGENT EXIT ADVICE*: {symbol} {exit_reason}!\n🧠 Sentiment: {sentiment['signal']} (Score: {sentiment['sentiment_score']})"
                 alert_success = self.send_alert(message)
                 
                 # Invert state to prevent spam alerting
