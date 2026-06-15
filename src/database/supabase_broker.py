@@ -18,52 +18,21 @@ load_dotenv()
 
 class SupabasePortfolioManager:
     def __init__(self):
-        raw_url = os.getenv("SUPABASE_URL", "")
-        raw_key = os.getenv("SUPABASE_KEY", "")
-        
-        # Strict Multi-Pass Sanitization Wrapper
-        def sanitize(val: str) -> str:
-            if not val:
-                return ""
-            # Strip accidental prefixes if pasted along with the key
-            if "SUPABASE_KEY=" in val:
-                val = val.split("SUPABASE_KEY=")[-1]
-            if "SUPABASE_URL=" in val:
-                val = val.split("SUPABASE_URL=")[-1]
-            # Strip backticks, quotes, and whitespace bounds
-            return val.replace("`", "").replace("'", "").replace('"', "").strip()
+        raw_url = str(os.getenv("SUPABASE_URL", "")).strip()
+        raw_key = str(os.getenv("SUPABASE_KEY", "")).strip()
 
-        self.url = sanitize(raw_url)
-        self.key = sanitize(raw_key)
-        
+        # Aggressively strip any residual text or ghost whitespace from Render or .env
+        self.url = raw_url.replace("`", "").replace('"', "").replace("'", "")
+        self.key = raw_key.replace("`", "").replace('"', "").replace("'", "").replace("anon public ", "").strip()
+
         if not self.url or not self.key:
             logging.error("CRITICAL: Sanitized Supabase credentials are empty!")
-            self.client = None
-            # Raising an error may crash sentinel depending on handling, 
-            # but user explicitly requested to raise ValueError
             raise ValueError("Invalid configuration boundaries.")
-        else:
-            # Bypass Supabase JWT validation for sb_publishable_* keys
-            import supabase._sync.client
-            original_match = supabase._sync.client.re.match
-            
-            def patched_match(pattern, string, flags=0):
-                if string.startswith("sb_publishable_"):
-                    return True
-                return original_match(pattern, string, flags)
-                
-            supabase._sync.client.re.match = patched_match
-            try:
-                self.client: Client = create_client(self.url, self.key)
-                
-                # CRITICAL FIX: Explicitly enforce key headers across all thread requests
-                self.client.options.headers.update({
-                    "apikey": self.key,
-                    "Authorization": f"Bearer {self.key}"
-                })
-                logging.info("Supabase API Request headers forcefully bound to client matrix.")
-            finally:
-                supabase._sync.client.re.match = original_match
+
+        logging.info(f"Connecting to Supabase... Key format valid: {self.key.startswith('eyJ')}")
+
+        # CRITICAL FIX: Revert to standard instantiation. Do not use ClientOptions for headers.
+        self.client: Client = create_client(self.url, self.key)
 
     def sync_manual_position(self, data: dict) -> bool:
         """
