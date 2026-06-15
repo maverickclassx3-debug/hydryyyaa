@@ -1,7 +1,7 @@
 import os
 import logging
 from dotenv import load_dotenv
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 import httpx
 
 # Surgical Interceptor for ghost-cached httpx version conflicts
@@ -30,9 +30,15 @@ class SupabasePortfolioManager:
             raise ValueError("Invalid configuration boundaries.")
 
         logging.info(f"Connecting to Supabase... Key format valid: {self.key.startswith('eyJ')}")
+        logging.info("Welding clean API key headers to all threads using ClientOptions...")
 
-        # CRITICAL FIX: Revert to standard instantiation. Do not use ClientOptions for headers.
-        self.client: Client = create_client(self.url, self.key)
+        # CRITICAL FIX: Weld the headers to survive thread hopping
+        opts = ClientOptions(headers={
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}"
+        })
+
+        self.client: Client = create_client(self.url, self.key, options=opts)
 
     def sync_manual_position(self, data: dict) -> bool:
         """
