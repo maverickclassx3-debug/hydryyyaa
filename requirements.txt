@@ -12,3 +12,6 @@ pandas==2.2.1
 pytest==8.1.1
 scikit-learn
 ta
+
+fastapi
+uvicorn
