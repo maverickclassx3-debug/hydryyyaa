@@ -77,30 +77,32 @@ class SupabasePortfolioManager:
             return False
 
     def log_ai_journal(self, symbol: str, action: str, price: float, sentiment_score: float, logic: str):
-        """Logs the cognitive processing matrix into public.ai_trade_journal via direct REST call.
+        import httpx
+        import logging
+        url = f"{self.url}/rest/v1/ai_trade_journal"
         
-        Bypasses supabase-py SDK for INSERT to avoid a version-specific bug where
-        the apikey header is dropped from mutation requests despite being set at init time.
-        """
+        # CRITICAL FIX: Explicitly define the Supabase authentication headers
+        headers = {
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+        }
+        
+        payload = {
+            "symbol": symbol,
+            "action": action,
+            "price": price,
+            "sentiment_score": sentiment_score,
+            "ai_logic": logic
+        }
+        
         try:
-            headers = {
-                "apikey": self.key,
-                "Authorization": f"Bearer {self.key}",
-                "Content-Type": "application/json",
-                "Prefer": "return=minimal"
-            }
-            endpoint = f"{self.url}/rest/v1/ai_trade_journal"
-            payload = {
-                "symbol": symbol,
-                "action": action,
-                "price": price,
-                "sentiment_score": sentiment_score,
-                "ai_logic": logic
-            }
-            response = httpx.post(endpoint, json=payload, headers=headers, timeout=10.0)
-            if response.status_code not in (200, 201):
-                logging.error(f"ai_trade_journal insert failed [{response.status_code}]: {response.text}")
+            # Force the headers into the POST request
+            response = httpx.post(url, headers=headers, json=payload, timeout=10.0)
+            if response.status_code >= 400:
+                logging.error(f"Journal insert failed [{response.status_code}]: {response.text}")
             else:
                 logging.info(f"ai_trade_journal logged: {symbol} | {action} | sentiment={sentiment_score}")
         except Exception as e:
-            logging.error(f"Failed to write to ai_trade_journal: {e}")
+            logging.error(f"HTTPX POST crash for {symbol}: {e}")
