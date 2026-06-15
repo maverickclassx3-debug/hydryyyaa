@@ -55,6 +55,13 @@ class SupabasePortfolioManager:
             supabase._sync.client.re.match = patched_match
             try:
                 self.client: Client = create_client(self.url, self.key)
+                
+                # CRITICAL FIX: Explicitly enforce key headers across all thread requests
+                self.client.options.headers.update({
+                    "apikey": self.key,
+                    "Authorization": f"Bearer {self.key}"
+                })
+                logging.info("Supabase API Request headers forcefully bound to client matrix.")
             finally:
                 supabase._sync.client.re.match = original_match
 
