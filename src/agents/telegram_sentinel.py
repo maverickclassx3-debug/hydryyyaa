@@ -109,16 +109,34 @@ def run_dummy_server():
     server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
     server.serve_forever()
 
-if __name__ == "__main__":
-    # Start the dummy web server to satisfy Render's port binding requirement
-    threading.Thread(target=run_dummy_server, daemon=True).start()
-    
-    # Initialize and run the Sentinel
-    sentinel = TelegramSentinel()
-    
-    # CRITICAL FIX: Execute the main loop so the bot actually processes data
+def run_bot_loop():
+    """Isolated runner for the Telegram Sentinel polling logic"""
     try:
-        sentinel.run_sentinel_loop()
+        logging.info("Starting isolated Sentinel core agent...")
+        sentinel = TelegramSentinel()
+        # Explicit execution trigger depending on your framework's loop controller
+        if hasattr(sentinel, 'run'):
+            sentinel.run()
+        elif hasattr(sentinel, 'run_sentinel_loop'):
+            sentinel.run_sentinel_loop()
     except Exception as e:
-        import logging
-        logging.error(f"Fatal error in Sentinel loop: {e}")
+        logging.error(f"Surgical Thread Recovery Alert - Core loop crashed: {e}")
+
+if __name__ == "__main__":
+    # Configure logging baseline format to flush streams instantly on Render
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    
+    # Thread Alpha: Satisfy Render's mandatory PORT binding checks
+    server_thread = threading.Thread(target=run_dummy_server, daemon=True)
+    server_thread.start()
+    logging.info("Thread Alpha: Render Dummy HTTP Server successfully detached.")
+
+    # Thread Beta: Run the main Sentinel automation engine
+    bot_thread = threading.Thread(target=run_bot_loop, daemon=True)
+    bot_thread.start()
+    logging.info("Thread Beta: Telegram Sentinel loop successfully detached.")
+
+    # Keep the main process thread alive indefinitely so background threads don't terminate
+    import time
+    while True:
+        time.sleep(1)
