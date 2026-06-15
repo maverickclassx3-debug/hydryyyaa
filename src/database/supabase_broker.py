@@ -77,14 +77,30 @@ class SupabasePortfolioManager:
             return False
 
     def log_ai_journal(self, symbol: str, action: str, price: float, sentiment_score: float, logic: str):
-        """Logs the cognitive processing matrix into public.ai_trade_journal"""
+        """Logs the cognitive processing matrix into public.ai_trade_journal via direct REST call.
+        
+        Bypasses supabase-py SDK for INSERT to avoid a version-specific bug where
+        the apikey header is dropped from mutation requests despite being set at init time.
+        """
         try:
-            self.client.table("ai_trade_journal").insert({
+            headers = {
+                "apikey": self.key,
+                "Authorization": f"Bearer {self.key}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal"
+            }
+            endpoint = f"{self.url}/rest/v1/ai_trade_journal"
+            payload = {
                 "symbol": symbol,
                 "action": action,
                 "price": price,
                 "sentiment_score": sentiment_score,
                 "ai_logic": logic
-            }).execute()
+            }
+            response = httpx.post(endpoint, json=payload, headers=headers, timeout=10.0)
+            if response.status_code not in (200, 201):
+                logging.error(f"ai_trade_journal insert failed [{response.status_code}]: {response.text}")
+            else:
+                logging.info(f"ai_trade_journal logged: {symbol} | {action} | sentiment={sentiment_score}")
         except Exception as e:
             logging.error(f"Failed to write to ai_trade_journal: {e}")
